@@ -5,7 +5,7 @@ var app = builder.Build();
 
 app.MapGet("/", () => "Hello World!");
 
-app.MapPost("/addUrl", async (UrlDto dto) =>
+app.MapPost("/addUrl", async (AddUrlRequest dto) =>
 {
     //await
     EmbassyRecord embReccord;

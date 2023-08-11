@@ -16,6 +16,7 @@ namespace TgBackend.Model
             Code = GetUrlParam("cd");
             Ems = GetUrlParam("ems");
             City = RawUrl.Split('.')[0].Split("://")[1];
+            Added = DateTime.UtcNow;
         }
 
         public string RawUrl { get; init; } = "";
@@ -32,6 +33,19 @@ namespace TgBackend.Model
         public string Ems { get; init; }
 
         public string? City { get; init; }
+
+        public DateTime Added { get; init; }
+
+        private DateTime _completed;
+        public DateTime? Completed { get { return _completed; }
+            set
+            {
+                if (value < Added || value is null)
+                    throw new ArgumentException("Completion date must be after added date.");
+
+                _completed = value.Value;
+            } 
+        }
 
         private string GetUrlParam(string key)
         {
