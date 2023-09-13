@@ -6,7 +6,7 @@ namespace TgBackend.Model
     {
         public EmbassyRecord(string rawUrl)
         {
-            var regex = new Regex("""^https?:\/\/[a-z]*.kdmid.ru\/queue\/orderinfo.aspx\?[a-zA=0-9&]*""");
+            var regex = new Regex(@"^https?:\/\/[a-z]*.kdmid.ru\/queue\/orderinfo.aspx\?[a-zA=0-9&]*");
             if (!regex.IsMatch(rawUrl.ToLower()))
                 throw new ArgumentException("Invalid URL format.");
 
