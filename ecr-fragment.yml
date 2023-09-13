@@ -1,0 +1,58 @@
+Resources:
+  EqmEcrRepository:
+    Type: AWS::ECR::Repository
+    Properties: 
+      RepositoryName: my-ecr-repo
+      LifecyclePolicy: 
+        LifecyclePolicyText: '{"rules":[{"rulePriority": 1,"description": "Keep last 10 images","selection": {"tagStatus": "any","countType": "imageCountMoreThan","countNumber": 100},"action": {"type": "expire"}}]}'
+      RepositoryPolicyText: !Sub |
+        {
+          "Version": "2008-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+                "AWS": [
+                  "arn:aws:iam::${AWS::AccountId}:root",
+                  "arn:aws:iam::${AWS::AccountId}:user/Andrew"
+                ]
+              },
+              "Action": [
+                "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage",
+                "ecr:BatchCheckLayerAvailability"
+              ]
+            }
+          ]
+        } 
+  # this could be set as Principal as well "AWS": "arn:aws:iam::${AWS::AccountId}:root" ?
+
+
+  ECRPushRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ECRPushRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - "ec2.amazonaws.com"
+          Action:
+          - "sts:AssumeRole"
+      Policies:
+      - PolicyName: ECRPushPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - "ecr:BatchCheckLayerAvailability"
+            - "ecr:CompleteLayerUpload"
+            - "ecr:InitiateLayerUpload"
+            - "ecr:PutImage"
+            - "ecr:UploadLayerPart"
+            Resource:
+            - !Ref EqmEcrRepository

@@ -1,0 +1,152 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: An example SAM template for Lambda function with a container image.
+
+#Parameters:
+#  DatabasePassword:
+#    Description: Password for the database
+#    Type: String
+#    Default: !Sub ${AWS::Region}
+#    NoEcho: true
+Resources:
+
+  CaptchaBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: eqm-captchas
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  CaptchaBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CaptchaBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - !Sub "${CaptchaBucket.Arn}/*"
+              - !GetAtt CaptchaBucket.Arn
+            Effect: Allow
+            Principal:
+              Service: "codebuild.amazonaws.com"
+
+  DynamoDBReadWritePolicy:
+  Type: 'AWS::IAM::ManagedPolicy'
+  Properties:
+    ManagedPolicyName: 'DynamoDBReadWritePolicy'
+    Description: 'Grants read and write permissions to DynamoDB'
+    PolicyDocument:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: 'Allow'
+          Action:
+            - 'dynamodb:GetItem'
+            - 'dynamodb:BatchGetItem'
+            - 'dynamodb:Query'
+            - 'dynamodb:Scan'
+            - 'dynamodb:PutItem'
+            - 'dynamodb:UpdateItem'
+            - 'dynamodb:BatchWriteItem'
+          Resource: !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/TABLE_NAME'
+
+  DynamoDBReadWriteRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'DynamoDBReadWriteRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: 'Allow'
+            Principal:
+              Service:
+                - 'ec2.amazonaws.com'  # Assuming this role is for EC2 instances, adjust if for a different service.
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - !Ref DynamoDBReadWritePolicy
+        #- 'arn:aws:iam::YOUR_ACCOUNT_ID:policy/YOUR_EXISTING_POLICY_NAME'
+
+  RekognitionLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: LambdaExecutionPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+          # Permissions for Rekognition to detect text in images
+          - Effect: Allow
+            Action:
+            - rekognition:DetectText
+            Resource: '*'
+      - PolicyName: RekognitionLambdaS3Access
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+            Resource: 
+              - !Sub '${CaptchaBucket.Arn}/*' # check if really there will be ARN
+      ManagedPolicyArns:
+        - !Ref DynamoDBReadWritePolicy
+
+  RekognitionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+        Events:
+          CaptchaImageCreated:
+            Type: S3
+            Properties:
+              Bucket: !Ref CaptchaBucket
+              Events: s3:ObjectCreated:*
+      Role: !GetAtt RekognitionLambdaExecutionRole.Arn # !Ref RekognitionLambdaExecutionRole maybe??
+      PackageType: Zip
+      CodeUri: s3://eqm-build-artifacts/captcha-solving/function.zip
+      #TODO UPDATE THE FOLLOWING:
+      Handler: YourNamespace.YourClass::YourNamespace.YourClass.YourMethod  # Update with the full method signature for your .NET Lambda handler
+      Runtime: dotnet6 
+      #ImageUri: b0a69fab4b5c #my-lambda-image:latest  # Reference to your local image
+      MemorySize: 256
+      Timeout: 20
+
+  S3InvokeLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref RekognitionFunction # !GetAtt RekognitionFunction.Arn ?
+      Principal: s3.amazonaws.com
+      SourceAccount: !Sub '${AWS::AccountId}'
+      SourceArn: !Ref CaptchaBucket # !GetAtt CaptchaBucket.Arn
+
+Outputs:
+  RekognitionFunction:
+    Description: "Rekognition Lambda Function"
+    Value: !GetAtt RekognitionFunction.Arn
+
+  #ECRRepositoryURL:
+  #  Description: "URL of the ECR Repository"
+  #  Value: 
+  #    Fn::Sub: "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EqmEcrRepository}"

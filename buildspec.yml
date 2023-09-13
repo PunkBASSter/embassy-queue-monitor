@@ -1,0 +1,23 @@
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      dotnet: 6
+  build:
+    commands:
+      - dotnet restore
+      - dotnet build
+      - sam build
+  post_build:
+    commands:
+      #- sam package
+      #   --template-file template.yml
+      #   --output-template-file package.yml
+      #   --s3-bucket demo-ci-cd-sam-bucket
+      - sam package --s3-bucket emq-build-artifacts --output-template-file packaged.yml 
+        #emq-build-artifacts -- hardcoded in build-deploy-pipeline.yml
+
+artifacts:
+  files:
+    - packaged.yml

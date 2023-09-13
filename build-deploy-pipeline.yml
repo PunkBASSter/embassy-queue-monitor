@@ -1,0 +1,261 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: CodePipeline for .NET 6 Lambda with SAM
+
+Parameters:
+  BranchName:
+    Type: String
+    Description: The name of the GitHub branch.
+    Default: main
+
+Resources:
+
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: eqm-build-artifacts
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  ArtifactBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ArtifactBucket
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "s3:PutObject"
+              - "s3:GetObject"
+              - "s3:ListBucket"
+            Resource:
+              - !Sub "${ArtifactBucket.Arn}/*"
+              - !GetAtt ArtifactBucket.Arn
+            Effect: Allow
+            Principal:
+              Service: "codebuild.amazonaws.com"
+
+  CodePipelineRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'CodePipelineServiceRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - codepipeline.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'CodePipelineFullAccess' #WHY Pipeline needs access to code pipeline??
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'codepipeline:*' #todo specify create/delete
+                Resource: '*'
+        - PolicyName: 'CodeBuildFullAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'codebuild:*' #todo specify create/delete
+                Resource: '*'
+        - PolicyName: 'CloudFormationFullAccess'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'cloudformation:*' #todo specify create/delete
+                Resource: '*'
+        - PolicyName: 'S3FullAccessForArtifacts'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:GetObjectVersion'
+                  - 's3:PutObject'
+                  - 's3:ListBucket'
+                Resource: 
+                  - !Sub '${ArtifactBucket.Arn}'
+                  - !Sub '${ArtifactBucket.Arn}/*'
+#Outputs:
+#  RoleARN:
+#    Description: The ARN of the created CodePipeline role
+#    Value: !GetAtt CodePipelineRole.Arn
+
+  MyCodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: MyDotNet6BuildProject
+      Description: Build project for .NET 6 Lambda function
+      Source:
+        Type: GITHUB
+        Location: https://github.com/punkbasster/embassy-queue-monitor.git
+        Auth:
+          Type: OAUTH
+          Resource: !Ref GitHubToken
+        ReportBuildStatus: true
+      Artifacts:
+        Type: S3
+        Location: !Ref ArtifactBucket ## ArtifactBucket.Arn or just name??? 
+        Packaging: ZIP
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:5.0
+      ServiceRole: !Ref CodePipelineRole ## REPLACED   
+
+#Replace placeholders (e.g., ARN_OF_YOUR_CODEPIPELINE_ROLE, YOUR_GITHUB_USERNAME, YOUR_REPOSITORY_NAME)
+#with appropriate values:
+  MyCodePipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: MySAMAppPipeline
+      RoleArn: !Ref CodePipelineRole #ARN_OF_YOUR_CODEPIPELINE_ROLE
+      ArtifactStore:
+        Type: S3
+        Location: !Ref ArtifactBucket
+      Stages:
+      - Name: Source
+        Actions:
+          - Name: GitHub_Source
+            ActionTypeId:
+              Category: Source
+              Owner: ThirdParty
+              Version: '1'
+              Provider: GitHub
+            OutputArtifacts:
+              - Name: SourceOutput
+            Configuration:
+              Owner: punkbasster
+              Repo: embassy-queue-monitor
+              Branch: !Ref BranchName
+              OAuthToken: !Ref GitHubToken
+              PollForSourceChanges: false
+
+      - Name: Build
+        Actions:
+          - Name: CodeBuild_Action
+            ActionTypeId:
+              Category: Build
+              Owner: AWS
+              Version: '1'
+              Provider: CodeBuild
+            InputArtifacts:
+              - Name: SourceOutput
+            OutputArtifacts:
+              - Name: BuildOutput
+            Configuration:
+              ProjectName: !Ref MyCodeBuildProject
+
+      - Name: Deploy
+        Actions:
+          - Name: CloudFormation_Deploy
+            ActionTypeId:
+              Category: Deploy
+              Owner: AWS
+              Version: '1'
+              Provider: CloudFormation
+            InputArtifacts:
+              - Name: BuildOutput
+            Configuration:
+              ActionMode: CREATE_UPDATE
+              StackName: !Sub EQM_SAM_STACK_${BranchName}
+              TemplatePath: BuildOutput::packaged.yml
+              Capabilities: CAPABILITY_IAM CAPABILITY_NAMED_IAM
+              RoleArn: !GetAtt CloudFormationDeploymentRole.Arn ##or !Ref CloudFormationDeploymentRole
+
+  CloudFormationDeploymentRole: # todo consider using managed Lambda and S3 full access policies.
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: 'CloudFormationDeploymentRole'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - cloudformation.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: 'CloudFormationPermissions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: AllowCreation
+                Effect: Allow
+                Action:
+                  - s3:CreateBucket
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:ListBucket
+                  - dynamodb:CreateTable
+                  - lambda:CreateFunction
+                  - lambda:InvokeFunction
+                  - rekognition:CreateProject
+                  - iam:CreateRole
+                  - iam:GetRole
+                  - iam:PassRole
+                Resource: '*'
+              - Sid: RestrictUpdateDeleteToCF
+                Effect: Allow
+                Action:
+                  - s3:DeleteBucket
+                  - s3:PutBucketPolicy
+                  - dynamodb:DeleteTable
+                  - lambda:UpdateFunctionCode
+                  - lambda:UpdateFunctionConfiguration
+                  - lambda:DeleteFunction
+                  - iam:DeleteRole
+                  - iam:DetachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:UpdateAssumeRolePolicy
+                  - rekognition:DeleteProject
+                Resource: '*'
+                Condition:
+                  StringEquals:
+                    aws:RequestTag/CreatedBy: CloudFormation
+                    aws:ResourceTag/CreatedBy: CloudFormation
+              - Sid: DenyDangerousAimActions
+                Effect: Deny
+                Action:
+                  - iam:CreateUser
+                  - iam:UpdateUser
+                  - iam:DeleteUser
+                  - iam:CreatePolicy
+                  - iam:DeletePolicy
+                  - iam:AttachUserPolicy
+                  - iam:DetachUserPolicy
+                Resource: '*'  # This denies actions on all IAM roles, policies, and users.
+        - PolicyName: 'SSMParameterAccess'
+            PolicyDocument:
+              Version: '2012-10-17'
+              Statement:
+                - Effect: Allow
+                  Action:
+                    - ssm:GetParameter
+                    - ssm:GetParameters
+                  Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/EqmGhReadToken'
+
+  GitHubToken: '{{resolve:ssm:/EqmGhReadToken:1}}'
+    #Type: AWS::SecretsManager::Secret
+    #Properties:
+    #  Name: GitHubToken
+    #  Description: OAuth Token for GitHub
+  
+  Outputs:
+  ArtifactBucketName:
+    Description: "The name of the artifact bucket"
+    Value: !Ref ArtifactBucket
