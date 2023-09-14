@@ -15,19 +15,11 @@ Resources:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: !Sub 'eqm-packages-${Environment}'
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
 
   EqmCaptchas:
     Type: 'AWS::S3::Bucket'
     Properties:
       BucketName: !Sub 'eqm-captchas-${Environment}'
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: AES256
   
   EqmCaptchasBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
@@ -39,14 +31,16 @@ Resources:
               - 's3:PutObject'
               - 's3:GetObject'
               - 's3:ListBucket'
-            Resource:
-              - !Sub '${EqmCaptchas.Arn}/*'
-              - !Ref EqmCaptchas
+            Resource: #!Ref EqmCaptchas won't work for S3 buckets
+              - !Sub '${EqmPackages.Arn}/*'
+              - !GetAtt EqmCaptchas.Arn
             Effect: Allow
             Principal:
               Service:
                 - lambda.amazonaws.com
-  
+    DependsOn:
+      - EqmCaptchas
+
   EqmPackagesBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
     Properties:
@@ -59,7 +53,7 @@ Resources:
               - 's3:ListBucket'
             Resource:
               - !Sub '${EqmPackages.Arn}/*'
-              - !Ref EqmPackages
+              - !GetAtt EqmPackages.Arn
             Effect: Allow
             Principal:
               Service:
@@ -68,6 +62,8 @@ Resources:
                 - lambda.amazonaws.com
                 - cloudformation.amazonaws.com
                 - serverlessrepo.amazonaws.com
+    DependsOn:
+      - EqmPackages
   
 Outputs:
   EqmPackagesBucketName:
