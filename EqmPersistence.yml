@@ -32,7 +32,7 @@ Resources:
               - 's3:GetObject'
               - 's3:ListBucket'
             Resource: #!Ref EqmCaptchas won't work for S3 buckets
-              - !Sub '${EqmPackages.Arn}/*'
+              - !Sub '${EqmCaptchas.Arn}/*'
               - !GetAtt EqmCaptchas.Arn
             Effect: Allow
             Principal:
@@ -78,8 +78,3 @@ Outputs:
     Export:
       Name: EqmCaptchasBucketName
 
-#Resources:
-#  SomeOtherResource:
-#    Type: 'SomeType'
-#    Properties:
-#      BucketName: !ImportValue EqmPackagesBucketName
