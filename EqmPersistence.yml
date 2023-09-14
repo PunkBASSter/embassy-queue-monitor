@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  Environment:
+    Description: Environment name (e.g., dev, prod, staging)
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Default: dev
+
+Resources:
+  EqmPackages:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub 'eqm-packages-${Environment}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+  EqmCaptchas:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub 'eqm-captchas-${Environment}'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  
+  EqmCaptchasBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref EqmCaptchas
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:PutObject'
+              - 's3:GetObject'
+              - 's3:ListBucket'
+            Resource:
+              - !Sub '${EqmCaptchas.Arn}/*'
+              - !Ref EqmCaptchas
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+  
+  EqmPackagesBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref EqmPackages
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:PutObject'
+              - 's3:GetObject'
+              - 's3:ListBucket'
+            Resource:
+              - !Sub '${EqmPackages.Arn}/*'
+              - !Ref EqmPackages
+            Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+                - codepipeline.amazonaws.com
+                - lambda.amazonaws.com
+                - cloudformation.amazonaws.com
+                - serverlessrepo.amazonaws.com
+  
+Outputs:
+  EqmPackagesBucketName:
+    Description: "S3 Bucket name for EqmPackages"
+    Value: !Ref EqmPackages
+    Export:
+      Name: EqmPackagesBucketName
+  
+  EqmCaptchasBucketName:
+    Description: "S3 Bucket name for EqmCaptchas"
+    Value: !Ref EqmCaptchas
+    Export:
+      Name: EqmCaptchasBucketName
+
+#Resources:
+#  SomeOtherResource:
+#    Type: 'SomeType'
+#    Properties:
+#      BucketName: !ImportValue EqmPackagesBucketName

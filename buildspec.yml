@@ -7,17 +7,20 @@ phases:
   build:
     commands:
       - dotnet restore
-      - dotnet build
-      - sam build
+      #- dotnet build
+      - dotnet publish ./CaptchaSolvingLambda/src/CaptchaSolvingLambda/CaptchaSolvingLambda.csproj
+         -c Release -o ./CaptchaSolvingLambda/publish -p:PublishReadyToRun=false
+      #- sam build
+      - zip -r CaptchaSolvingLambda.zip ./CaptchaSolvingLambda/publish
   post_build:
     commands:
       #- sam package
       #   --template-file template.yml
       #   --output-template-file package.yml
       #   --s3-bucket demo-ci-cd-sam-bucket
-      - sam package --s3-bucket emq-build-artifacts --output-template-file packaged.yml 
+      - sam package --s3-bucket eqm-build-artifacts --output-template-file package.yml 
         #emq-build-artifacts -- hardcoded in build-deploy-pipeline.yml
-
+        # CaptchaSolvingLambda.zip
 artifacts:
   files:
-    - packaged.yml
+    - package.yml

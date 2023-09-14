@@ -1,0 +1,183 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Resources:
+  EqmCaptchas:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: eqm-captchas
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+        - ServerSideEncryptionByDefault:
+            SSEAlgorithm: AES256
+    Metadata:
+      AWS::CloudFormation::Designer:
+        id: e2dee382-773f-4b9f-9ae5-bbb97f7cc7f1
+      SamResourceId: EqmCaptchas
+  EqmCaptchasBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket:
+        Ref: EqmCaptchas
+      PolicyDocument:
+        Statement:
+        - Action:
+          - s3:PutObject
+          - s3:GetObject
+          - s3:ListBucket
+          Resource:
+          - Fn::Sub: ${EqmCaptchas.Arn}/*
+          - Ref: EqmCaptchas
+          - arn:aws:s3:::eqm-packages/*
+          - arn:aws:s3:::eqm-packages
+          Effect: Allow
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+            - lambda.amazonaws.com
+    Metadata:
+      AWS::CloudFormation::Designer:
+        id: fef2219c-1009-4ad9-9026-816bd7106ce8
+      SamResourceId: EqmCaptchasBucketPolicy
+  EqmCaptchaSolvingLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: EqmCaptchaSolvingLambda
+      Role:
+        Ref: EqmCaptchaSolvingLambdaRole
+      Code:
+        S3Bucket: eqm-packages
+        S3Key: CaptchaSolvingLambda.zip
+      Handler: CaptchaSolvingLambda.Function::CaptchaSolvingLambda.Function.FunctionHandler
+      Runtime: dotnet6
+      MemorySize: 256
+      Timeout: 20
+    Metadata:
+      AWS::CloudFormation::Designer:
+        id: e5b3c25b-ff21-4ebc-b8ac-3d474a160047
+      SamResourceId: EqmCaptchaSolvingLambda
+  EqmCaptchaSolvingLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: LambdaS3Access
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - s3:GetObject
+            Resource:
+            - Fn::Sub: ${EqmCaptchas.Arn}/*
+            - arn:aws:s3:::eqm-packages/*
+      - PolicyName: EqmLambdaExecutionPolicy
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: '*'
+    Metadata:
+      AWS::CloudFormation::Designer:
+        id: 768cd6b2-6864-404d-92a6-c93bfd74ee95
+      SamResourceId: EqmCaptchaSolvingLambdaRole
+  EqmCaptchaSolvingLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName:
+        Fn::GetAtt:
+        - EqmCaptchaSolvingLambda
+        - Arn
+      Principal: s3.amazonaws.com
+      SourceAccount:
+        Ref: AWS::AccountId
+      SourceArn:
+        Ref: EqmCaptchas
+    Metadata:
+      AWS::CloudFormation::Designer:
+        id: cd138961-d814-4519-96e1-5c6abbba1b1b
+      SamResourceId: EqmCaptchaSolvingLambdaPermission
+  EqmCaptchaSolvingLambdaEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 5
+      EventSourceArn:
+        Ref: EqmCaptchas
+      FunctionName:
+        Fn::GetAtt:
+        - EqmCaptchaSolvingLambda
+        - Arn
+      Enabled: 'true'
+    Metadata:
+      AWS::CloudFormation::Designer:
+        id: f14d4b9d-d37b-4fee-99b3-7d88b721bfa1
+      SamResourceId: EqmCaptchaSolvingLambdaEventSourceMapping
+Metadata:
+  AWS::CloudFormation::Designer:
+    e2dee382-773f-4b9f-9ae5-bbb97f7cc7f1:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 130
+        y: 140
+      z: 0
+      embeds: []
+    e5b3c25b-ff21-4ebc-b8ac-3d474a160047:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 330
+        y: 140
+      z: 0
+      embeds: []
+    fef2219c-1009-4ad9-9026-816bd7106ce8:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 130
+        y: 240
+      z: 0
+      embeds: []
+      isassociatedwith:
+      - e2dee382-773f-4b9f-9ae5-bbb97f7cc7f1
+    768cd6b2-6864-404d-92a6-c93bfd74ee95:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 330
+        y: 40
+      z: 0
+      embeds: []
+    cd138961-d814-4519-96e1-5c6abbba1b1b:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 230
+        y: 100
+      z: 0
+      embeds: []
+    f14d4b9d-d37b-4fee-99b3-7d88b721bfa1:
+      size:
+        width: 60
+        height: 60
+      position:
+        x: 230
+        y: 180
+      z: 0
+      embeds: []

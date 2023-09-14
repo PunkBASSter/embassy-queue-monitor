@@ -171,7 +171,7 @@ Resources:
             Configuration:
               ActionMode: CREATE_UPDATE
               StackName: !Sub EQM_SAM_STACK_${BranchName}
-              TemplatePath: BuildOutput::packaged.yml
+              TemplatePath: BuildOutput::package.yml
               Capabilities: CAPABILITY_IAM CAPABILITY_NAMED_IAM
               RoleArn: !GetAtt CloudFormationDeploymentRole.Arn ##or !Ref CloudFormationDeploymentRole
 
@@ -239,15 +239,15 @@ Resources:
                   - iam:AttachUserPolicy
                   - iam:DetachUserPolicy
                 Resource: '*'  # This denies actions on all IAM roles, policies, and users.
-        - PolicyName: 'SSMParameterAccess'
-            PolicyDocument:
-              Version: '2012-10-17'
-              Statement:
-                - Effect: Allow
-                  Action:
-                    - ssm:GetParameter
-                    - ssm:GetParameters
-                  Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/EqmGhReadToken'
+        - PolicyName: SSMParameterAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                  - ssm:GetParameters
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/EqmGhReadToken'
 
   GitHubToken: '{{resolve:ssm:/EqmGhReadToken:1}}'
     #Type: AWS::SecretsManager::Secret
