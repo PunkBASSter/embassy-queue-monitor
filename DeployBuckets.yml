@@ -120,7 +120,7 @@ Resources:
     Type: 'AWS::CloudTrail::Trail'
     Properties:
       S3BucketName: !Ref EqmCloudTrailLogs
-      S3KeyPrefix: 'EqmCaptchasLogs'
+      S3KeyPrefix: 'EqmCaptchasLogs/'
       IsLogging: true
       TrailName: CaptchasTrail
       EventSelectors:
