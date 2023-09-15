@@ -1,0 +1,155 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  Environment:
+    Description: Environment name (e.g., dev, prod, staging)
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Default: dev
+
+Resources:
+  EqmPackages:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub 'eqm-packages-${Environment}'
+      VersioningConfiguration:
+        Status: 'Enabled'
+      LifecycleConfiguration:
+        Rules:
+          - Id: 'IntelligentTiering'
+            Status: 'Enabled'
+            Transitions:
+              - TransitionInDays: 0
+                StorageClass: 'INTELLIGENT_TIERING'
+
+  EqmPackagesBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref EqmPackages
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:PutObject'
+              - 's3:GetObject'
+              - 's3:ListBucket'
+            Resource:
+              - !Sub '${EqmPackages.Arn}/*'
+              - !GetAtt EqmPackages.Arn
+            Effect: Allow
+            Principal:
+              Service:
+                - codebuild.amazonaws.com
+                - codepipeline.amazonaws.com
+                - lambda.amazonaws.com
+                - cloudformation.amazonaws.com
+                - serverlessrepo.amazonaws.com
+    DependsOn:
+      - EqmPackages
+  
+  EqmCaptchas:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub 'eqm-captchas-${Environment}'
+      LifecycleConfiguration:
+        Rules:
+          - Id: 'IntelligentTiering'
+            Status: 'Enabled'
+            Transitions:
+              - TransitionInDays: 0
+                StorageClass: 'INTELLIGENT_TIERING'
+
+  EqmCaptchasBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref EqmCaptchas
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:PutObject'
+              - 's3:GetObject'
+              - 's3:ListBucket'
+            Resource: #!Ref EqmCaptchas won't work for S3 buckets
+              - !Sub '${EqmCaptchas.Arn}/*'
+              - !GetAtt EqmCaptchas.Arn
+            Effect: Allow
+            Principal:
+              Service: 
+                #maybe add restrictions to exact EqmCaptchaSolvingLambdaArn,
+                #but writing lambda permission will be required also 
+                #!Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptchaSolvingLambdaPrefix}-${Environment}
+                - lambda.amazonaws.com 
+    DependsOn:
+      - EqmCaptchas
+
+  EqmCloudTrailLogs:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub 'eqm-trail-logs-${Environment}'
+      LifecycleConfiguration:
+        Rules:
+          - Id: 'ShortRetention'
+            Status: 'Enabled'
+            ExpirationInDays: 1
+            Transitions:
+              - TransitionInDays: 0
+                StorageClass: 'INTELLIGENT_TIERING'
+
+  EqmCloudTrailLogsPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref EqmCloudTrailLogs
+      PolicyDocument:
+        Statement:
+        - Sid: "CloudTrailBucketPolicy"
+          Action: 
+            - "s3:GetBucketAcl"
+            - "s3:PutObject"
+          Effect: "Allow"
+          Resource: 
+            - !Sub "${EqmCloudTrailLogs.Arn}"
+            - !Sub "${EqmCloudTrailLogs.Arn}/*"
+          Principal:
+            Service: "cloudtrail.amazonaws.com"
+    DependsOn:
+      - EqmCloudTrailLogs
+
+  EqmCaptchasCloudTrail: #for triggering Lambda
+    Type: 'AWS::CloudTrail::Trail'
+    Properties:
+      S3BucketName: !Ref EqmCloudTrailLogs
+      S3KeyPrefix: 'EqmCaptchasLogs/'
+      IsLogging: true
+      TrailName: CaptchasTrail
+      EventSelectors:
+        - DataResources:
+          - Type: AWS::S3::Object
+            Values:
+              #- !Sub 'arn:aws:s3:::${EqmCaptchas}/*'
+              - !Sub '${EqmCaptchas.Arn}/*'
+          IncludeManagementEvents: false
+          ReadWriteType: WriteOnly
+    DependsOn: 
+      - EqmCloudTrailLogs
+      - EqmCaptchas
+    
+Outputs:
+  EqmPackagesBucketName:
+    Description: "S3 Bucket name for EqmPackages"
+    Value: !Ref EqmPackages
+    Export:
+      Name: !Sub EqmPackagesBucketName-${Environment}
+
+  EqmCaptchasBucketName:
+    Description: "S3 Bucket name for EqmCaptchas"
+    Value: !Ref EqmCaptchas
+    Export:
+      Name: !Sub EqmCaptchasBucketName-${Environment}
+
+  EqmCloudTrailLogsBucketName:
+    Description: "S3 Bucket name for EqmCloudTrailLogs"
+    Value: !Ref EqmCloudTrailLogs
+    Export:
+      Name: !Sub EqmCloudTrailLogsBucketName-${Environment}

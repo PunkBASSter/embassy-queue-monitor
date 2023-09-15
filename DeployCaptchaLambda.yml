@@ -62,6 +62,41 @@ Resources:
                   - 'logs:PutLogEvents'
                 Resource: '*'
 
+  EventBridgeRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Description: 'Event Rule for S3 Write Operations on EqmCaptchas bucket'
+      EventPattern:
+        source:
+          - 'aws.s3'
+        detail-type:
+          - 'AWS API Call via CloudTrail'
+        detail:
+          eventName:
+            - 'PutObject'
+            - 'PostObject'
+            - 'CompleteMultipartUpload'
+          requestParameters:
+            bucketName: 
+              - !Sub 
+                - "${ImportedBucketName}"
+                - ImportedBucketName: !ImportValue 
+                    Fn::Sub: EqmCaptchasBucketName-${Environment}
+      State: 'ENABLED'
+      Targets:
+        - Arn: !GetAtt EqmCaptchaSolvingLambda.Arn
+          Id: 'CaptchaSolvingTarget'
+    DependsOn:
+      - EqmCaptchaSolvingLambda
+
+  PermissionForEventsToInvokeLambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !Ref EqmCaptchaSolvingLambda
+      Action: 'lambda:InvokeFunction'
+      Principal: 'events.amazonaws.com'
+      SourceArn: !GetAtt EventBridgeRule.Arn
+
 Outputs:
 
   EqmCaptchaSolvingLambdaArn:
