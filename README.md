@@ -1,7 +1,7 @@
-# Initial configuration steps
-1. Deploy AppStack from EqmPersistence.yml to create persistent data storages like S3 buckets and DynamoDB tables.
+# Deployment steps
+1. Run DeployPackagesBucket.yml to create an S3 bucket to store lambda Zip packages.
 2. Upload a ZIP archive with Lambda to the `eqm-packages` bucket.
-3. Deploy CF App Stack from template EqmResources.yml
+3. Run DeployCaptchaSolving.yml to create S3 bucket for captchas, a Lambda and policies, roles, permissions.
 
 ???
 
