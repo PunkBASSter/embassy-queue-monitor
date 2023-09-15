@@ -1,0 +1,90 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  Environment:
+    Description: Environment name (e.g., dev, prod, staging)
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Default: dev
+
+Resources:
+  
+  EqmCaptchaSolvingLambda:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: !Sub EqmCaptchaSolvingLambda-${Environment}
+      Role: !GetAtt EqmCaptchaSolvingLambdaRole.Arn
+      Code:
+        S3Bucket: !ImportValue EqmPackagesBucketName
+        S3Key: CaptchaSolvingLambda.zip
+      Handler: >-
+        CaptchaSolvingLambda.Function::CaptchaSolvingLambda.Function.FunctionHandler
+      Runtime: dotnet6
+      MemorySize: 256
+      Timeout: 20
+    DependsOn:
+      - EqmCaptchaSolvingLambdaRole
+    
+  EqmCaptchaSolvingLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub EqmCaptchaSolvingLambdaRole-${Environment}
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies: #TODO maybe add DynamoDb read/write permissions
+        - PolicyName: LambdaS3Access #Probably unnecessary because of bucket policies
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 's3:GetObject'
+                  - 's3:PutObject'
+                Resource:
+                  - !Sub 
+                    - 'arn:aws:s3:::${CaptchasBucketName}/*'
+                    - CaptchasBucketName: !ImportValue EqmCaptchasBucketName
+                  - !Sub 
+                    - 'arn:aws:s3:::${PackagesBucketName}/*'
+                    - PackagesBucketName: !ImportValue EqmPackagesBucketName
+        - PolicyName: EqmLambdaExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+
+  EqmCaptchaSolvingLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !GetAtt EqmCaptchaSolvingLambda.Arn
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn:
+        !Sub 
+          - 'arn:aws:s3:::${CaptchasBucketName}/*'
+          - CaptchasBucketName: !ImportValue EqmCaptchasBucketName
+    DependsOn:
+      - EqmCaptchaSolvingLambda
+
+Outputs:
+  EqmCaptchaSolvingLambdaArn:
+    Description: "Captcha Solving Lambda ARN"
+    Value: !GetAtt EqmCaptchaSolvingLambda.Arn
+    Export:
+      Name: EqmCaptchaSolvingLambdaArn
