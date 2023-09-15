@@ -17,39 +17,6 @@ Parameters:
 
 Resources:
 
-  EqmCaptchas:
-    Type: 'AWS::S3::Bucket'
-    Properties:
-      BucketName: !Sub 'eqm-captchas-${Environment}'
-      NotificationConfiguration:
-        LambdaConfigurations:
-          - Event: 's3:ObjectCreated:*'
-            Function: !GetAtt EqmCaptchaSolvingLambda.Arn
-            #!Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptchaSolvingLambdaPrefix}-${Environment}
-    DependsOn:
-      - EqmCaptchaSolvingLambda
-      - S3CallCaptchaSolvingLambdaPermission
-
-  EqmCaptchasBucketPolicy:
-    Type: 'AWS::S3::BucketPolicy'
-    Properties:
-      Bucket: !Ref EqmCaptchas
-      PolicyDocument:
-        Statement:
-          - Action:
-              - 's3:PutObject'
-              - 's3:GetObject'
-              - 's3:ListBucket'
-            Resource: #!Ref EqmCaptchas won't work for S3 buckets
-              - !Sub '${EqmCaptchas.Arn}/*'
-              - !GetAtt EqmCaptchas.Arn
-            Effect: Allow
-            Principal:
-              Service:
-                - lambda.amazonaws.com
-    DependsOn:
-      - EqmCaptchas
-
   EqmCaptchaSolvingLambda:
     Type: 'AWS::Lambda::Function'
     Properties:
@@ -94,24 +61,7 @@ Resources:
                   - 'logs:PutLogEvents'
                 Resource: '*'
 
-  S3CallCaptchaSolvingLambdaPermission:
-    Type: 'AWS::Lambda::Permission'
-    Properties:
-      Action: 'lambda:InvokeFunction'
-      FunctionName: !GetAtt EqmCaptchaSolvingLambda.Arn
-      Principal: s3.amazonaws.com
-      SourceAccount: !Ref 'AWS::AccountId'
-      SourceArn: !Sub arn:aws:s3:::eqm-captchas-${Environment} #Copied from the bucket name
-    DependsOn:
-      - EqmCaptchaSolvingLambda
-
 Outputs:
-
-  EqmCaptchasBucketName:
-    Description: "S3 Bucket name for EqmCaptchas"
-    Value: !Ref EqmCaptchas
-    Export:
-      Name: !Sub EqmCaptchasBucketName-${Environment}
 
   EqmCaptchaSolvingLambdaArn:
     Description: "Captcha Solving Lambda ARN"

@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  Environment:
+    Description: Environment name (e.g., dev, prod, staging)
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Default: dev
+
+Resources:
+
+  EqmCaptchas:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Sub 'eqm-captchas-${Environment}'
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: 's3:ObjectCreated:*'
+            Function: !ImportValue EqmCaptchaSolvingLambdaArn
+            #!Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptchaSolvingLambdaPrefix}-${Environment}
+    DependsOn:
+      - S3CallCaptchaSolvingLambdaPermission
+
+  EqmCaptchasBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref EqmCaptchas
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 's3:PutObject'
+              - 's3:GetObject'
+              - 's3:ListBucket'
+            Resource: #!Ref EqmCaptchas won't work for S3 buckets
+              - !Sub '${EqmCaptchas.Arn}/*'
+              - !GetAtt EqmCaptchas.Arn
+            Effect: Allow
+            Principal:
+              Service: #maybe add restrictions to exact EqmCaptchaSolvingLambdaArn, but writing lambda permission will be required also 
+                - lambda.amazonaws.com 
+    DependsOn:
+      - EqmCaptchas
+
+  S3CallCaptchaSolvingLambdaPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      Action: 'lambda:InvokeFunction'
+      FunctionName: !ImportValue EqmCaptchaSolvingLambdaArn
+      Principal: s3.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Sub arn:aws:s3:::eqm-captchas-${Environment} #Copied from the bucket name
+
+Outputs:
+
+  EqmCaptchasBucketName:
+    Description: "S3 Bucket name for EqmCaptchas"
+    Value: !Ref EqmCaptchas
+    Export:
+      Name: !Sub EqmCaptchasBucketName-${Environment}
