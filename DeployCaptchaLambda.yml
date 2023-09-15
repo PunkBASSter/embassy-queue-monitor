@@ -29,7 +29,8 @@ Resources:
                 Fn::Sub: EqmPackagesBucketName-${Environment}
         S3Key: CaptchaSolvingLambda.zip
       Handler: >-
-        CaptchaSolvingLambda.Function::CaptchaSolvingLambda.Function.FunctionHandler
+        CaptchaSolvingLambda::CaptchaSolvingLambda.Function::FunctionHandler
+
       Runtime: dotnet6
       MemorySize: 256
       Timeout: 20
