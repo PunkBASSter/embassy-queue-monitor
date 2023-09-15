@@ -28,7 +28,7 @@ Resources:
             #!Sub arn:aws:lambda:${AWS::Region}:${AWS::AccountId}:function:${CaptchaSolvingLambdaPrefix}-${Environment}
     DependsOn:
       - EqmCaptchaSolvingLambda
-      - EqmCaptchaSolvingLambdaPermission
+      - S3CallCaptchaSolvingLambdaPermission
 
   EqmCaptchasBucketPolicy:
     Type: 'AWS::S3::BucketPolicy'
@@ -94,7 +94,7 @@ Resources:
                   - 'logs:PutLogEvents'
                 Resource: '*'
 
-  EqmCaptchaSolvingLambdaPermission:
+  S3CallCaptchaSolvingLambdaPermission:
     Type: 'AWS::Lambda::Permission'
     Properties:
       Action: 'lambda:InvokeFunction'
