@@ -1,0 +1,69 @@
+{
+  "eventVersion": "1.09",
+  "userIdentity": {
+    "type": "IAMUser",
+    "principalId": "AIDATFVZXWYOYEZS2NOHC",
+    "arn": "arn:aws:iam::218359117341:user/Andrew",
+    "accountId": "218359117341",
+    "accessKeyId": "ASIATFVZXWYOW3JHDZWV",
+    "userName": "Andrew",
+    "sessionContext": {
+      "attributes": {
+        "creationDate": "2023-09-15T13:36:24Z",
+        "mfaAuthenticated": "true"
+      }
+    }
+  },
+  "eventTime": "2023-09-15T18:11:56Z",
+  "eventSource": "s3.amazonaws.com",
+  "eventName": "PutObject",
+  "awsRegion": "eu-central-1",
+  "sourceIPAddress": "77.222.25.24",
+  "userAgent": "[Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.81]",
+  "requestParameters": {
+    "X-Amz-Date": "20230915T181156Z",
+    "bucketName": "eqm-captchas-dev",
+    "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+    "x-amz-acl": "bucket-owner-full-control",
+    "X-Amz-SignedHeaders": "content-md5;content-type;host;x-amz-acl;x-amz-storage-class",
+    "Host": "eqm-captchas-dev.s3.eu-central-1.amazonaws.com",
+    "X-Amz-Expires": "300",
+    "key": "CodeImage.jpg",
+    "x-amz-storage-class": "STANDARD"
+  },
+  "responseElements": {
+    "x-amz-server-side-encryption": "AES256"
+  },
+  "additionalEventData": {
+    "SignatureVersion": "SigV4",
+    "CipherSuite": "ECDHE-RSA-AES128-GCM-SHA256",
+    "bytesTransferredIn": 6706,
+    "SSEApplied": "Default_SSE_S3",
+    "AuthenticationMethod": "QueryString",
+    "x-amz-id-2": "9rCFK9u4UWY/q0VFP5raeyZp/KJoCmznckTwigJV3UmIASuYDWs2ZglTq5KuRzjygmRDkwXrTw0=",
+    "bytesTransferredOut": 0
+  },
+  "requestID": "Z4K6T96RTTM9PTE1",
+  "eventID": "93a682c9-f398-4dc2-a513-ee2a949d3dac",
+  "readOnly": false,
+  "resources": [
+    {
+      "type": "AWS::S3::Object",
+      "ARN": "arn:aws:s3:::eqm-captchas-dev/CodeImage.jpg"
+    },
+    {
+      "accountId": "218359117341",
+      "type": "AWS::S3::Bucket",
+      "ARN": "arn:aws:s3:::eqm-captchas-dev"
+    }
+  ],
+  "eventType": "AwsApiCall",
+  "managementEvent": false,
+  "recipientAccountId": "218359117341",
+  "eventCategory": "Data",
+  "tlsDetails": {
+    "tlsVersion": "TLSv1.2",
+    "cipherSuite": "ECDHE-RSA-AES128-GCM-SHA256",
+    "clientProvidedHostHeader": "eqm-captchas-dev.s3.eu-central-1.amazonaws.com"
+  }
+}

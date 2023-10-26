@@ -31,3 +31,5 @@ _ReSharper*/
 packages/
 publish/
 *.zip
+node_modules/
+dist/
