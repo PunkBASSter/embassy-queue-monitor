@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: CodePipeline for .NET 6 Lambda with SAM
+Description: CodePipeline for Node 18 Lambda with SAM
 
 Parameters:
   BranchName:
@@ -97,7 +97,7 @@ Resources:
     Type: AWS::CodeBuild::Project
     Properties:
       Name: MyDotNet6BuildProject
-      Description: Build project for .NET 6 Lambda function
+      Description: Build project for .Node 18 Lambda function
       Source:
         Type: GITHUB
         Location: https://github.com/punkbasster/embassy-queue-monitor.git
@@ -249,6 +249,7 @@ Resources:
                   - ssm:GetParameters
                 Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/EqmGhReadToken'
 
+  #The following is stored here: AWS Systems Manager -> Parameter Store -> EqmGhReadToken -> Overview
   GitHubToken: '{{resolve:ssm:/EqmGhReadToken:1}}'
     #Type: AWS::SecretsManager::Secret
     #Properties:

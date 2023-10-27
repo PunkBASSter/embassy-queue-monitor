@@ -1,4 +1,5 @@
 AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
 
 Parameters:
   Environment:
@@ -17,7 +18,7 @@ Parameters:
 
 Resources:
 
-  EqmCaptchaSolvingLambda:
+  EqmCaptchaSolvingLambda: #todo fix befor using
     Type: 'AWS::Lambda::Function'
     Properties:
       FunctionName: !Sub ${CaptchaSolvingLambdaPrefix}-${Environment}
@@ -30,8 +31,8 @@ Resources:
         S3Key: CaptchaSolvingLambda.zip
       Handler: >-
         CaptchaSolvingLambda::CaptchaSolvingLambda.Function::FunctionHandler
-
-      Runtime: dotnet6
+      #Runtime: dotnet6
+      Runtime: nodejs18.x
       MemorySize: 256
       Timeout: 20
     DependsOn:
