@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CloudFormation Template to create a DynamoDB table for Rekognition Results with a sort key.'
+
+Parameters:
+  Environment:
+    Description: Environment name (e.g., dev, prod, staging)
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Default: dev
+
+Resources:
+  RekognitionResultsTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: !Sub RekognitionResults-${Environment}
+      AttributeDefinitions:
+        - AttributeName: 'objectKey'
+          AttributeType: 'S'
+        - AttributeName: 'timestamp'
+          AttributeType: 'N' # N is for Number data type in DynamoDB
+      KeySchema:
+        - AttributeName: 'objectKey'
+          KeyType: 'HASH'
+        - AttributeName: 'timestamp'
+          KeyType: 'RANGE' # Sort Key
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+      StreamSpecification:
+        StreamViewType: 'NEW_AND_OLD_IMAGES'
+
+Outputs:
+
+  EqmRekognitionResultsTableArn:
+    Description: "Rekognition Results DDB Table ARN"
+    Value: !GetAtt RekognitionResultsTable.Arn
+    Export:
+      Name: !Sub RekognitionResultsTableArn-${Environment}
