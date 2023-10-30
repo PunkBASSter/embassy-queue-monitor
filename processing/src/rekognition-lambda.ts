@@ -1,50 +1,47 @@
-import { S3, Rekognition, DynamoDB  } from 'aws-sdk';
-import { S3ObjectCreatedNotificationEvent } from 'aws-lambda';
+import { S3 } from '@aws-sdk/client-s3';
+import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
+import { Rekognition } from '@aws-sdk/client-rekognition';
+import { EventBridgeEvent } from 'aws-lambda';
 
 const s3 = new S3();
 const rekognition = new Rekognition();
-const dynamoDB = new DynamoDB.DocumentClient();
+const dynamoDB = new DynamoDBClient();
 const tableName = "RekognitionResults";
 
-//key format is <session_guid>_<captcha_attempt_num>.jpg?
+//s3 captcha image metadata must contain session guid used as the parti
 
 //TODO maybe pass session data via object metadata or tags.
-export const handler = async (event: S3ObjectCreatedNotificationEvent) => {
+export const handler = async (event: EventBridgeEvent<any, any>) => {
     try {
         // Assuming the CloudTrail event is for an S3 PutObject
-        const bucketName = event.detail.bucket.name;
-        const objectKey = event.detail.object.key;
-        const objName = objectKey.split('/').pop();
-        const captchaAttempt = objName?.split('_').pop()?.split('.')[0] ?? 0;
-
+        const bucketName = event.detail.requestParameters.bucketName;
+        const objectKey = event.detail.requestParameters.key;
+        
         // Get the image from S3
         const s3Response = await s3.getObject({
             Bucket: bucketName,
             Key: objectKey,
-        }).promise();
+        });
 
-        const imageBytes = s3Response.Body as Buffer;
+        const imageBytes = await s3Response.Body?.transformToByteArray();
+        const metadata = s3Response.Metadata || {};
+        
+        const sessionId = metadata.sessionId || "00000000-0000-0000-0000-000000000000";
+        const captchaAttempt = metadata.captchaAttempt || "0";
 
         // Detect text in the image using Rekognition
-        const rekognitionResponse = await rekognition.detectText({
-            Image: {
-                Bytes: imageBytes
-            }
-        }).promise();
+        const rekognitionResponse = await rekognition.detectText({ Image: { Bytes: imageBytes } });
 
         // Extract the detected text
-        const detectedTexts = rekognitionResponse.TextDetections?.map(t => t.DetectedText) || [];
+        const detectedTexts = rekognitionResponse.TextDetections?.map(t => t.DetectedText || '') || [];       
+        const item : CaptchaItem= {
+            partitionKey: sessionId,
+            sortKey: +captchaAttempt,
+            detectedTexts: detectedTexts,
+            timeUtc: new Date().toUTCString()
+        };
 
-        // Save results to DynamoDB
-        await dynamoDB.put({
-            TableName: tableName,
-            Item: {
-                objectKey: objectKey,
-                sortKey: +captchaAttempt,
-                detectedTexts: detectedTexts,
-                timestamp: new Date().toISOString()
-            }
-        }).promise();
+        await putDdbItem(tableName, item);
 
         console.log(`Saved detected texts for ${objectKey} to DynamoDB.`);
         return detectedTexts;
@@ -53,3 +50,39 @@ export const handler = async (event: S3ObjectCreatedNotificationEvent) => {
         throw error;
     }
 };
+
+async function putDdbItem(tableName: string, item: { [key: string]: any }) {
+    const convertedItem = convertToAttributeValue(item);
+
+    try {
+        const command = new PutItemCommand({
+            TableName: tableName,
+            Item: convertedItem
+        });
+        
+        const response = await dynamoDB.send(command);
+        console.log("Item inserted successfully:", response);
+    } catch (error) {
+        console.error("Error inserting item:", error);
+    }
+}
+
+function convertToAttributeValue(item: { [key: string]: any }): { [key: string]: any } {
+    let attributeValue: { [key: string]: any } = {};
+
+    for (const key in item) {
+        const value = item[key];
+
+        if (typeof value === "string") {
+            attributeValue[key] = { S: value };
+        } else if (typeof value === "number") {
+            attributeValue[key] = { N: value.toString() };
+        } else if (Array.isArray(value)) {
+            attributeValue[key] = { L: value.map(v => convertToAttributeValue({ temp: v }).temp) }; 
+            // Wrap each array element in a temp object to recursively convert
+        } 
+        // ... add other types as needed, such as BOOL, M (Map), etc.
+    }
+
+    return attributeValue;
+}

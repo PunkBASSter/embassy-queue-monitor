@@ -1,38 +1,61 @@
-import { S3 } from 'aws-sdk';
-import { APIGatewayProxyHandler } from 'aws-lambda';
+import { S3Client, ListObjectsV2Command, CopyObjectCommand } from "@aws-sdk/client-s3";
+import { v4 as uuidv4 } from 'uuid'
 
-const s3 = new S3();
-const BUCKET_NAME = 'your-s3-bucket-name'; // Replace with your bucket name
+const BUCKET_NAME = 'eqm-captchas-dev';
 
-export const handler: APIGatewayProxyHandler = async (event) => {
-    const body = JSON.parse(event.body as string);
-    
-    // Assuming the body contains a base64 encoded file and metadata
-    const fileContent = Buffer.from(body.fileContent, 'base64');
-    const metadata = body.metadata || {};
+const s3Client = new S3Client();  // Change to your region
 
+export const handler = async (event: any): Promise<any> => {
     try {
-        const putObjectResponse = await s3.putObject({
+        // 1. Get the last modified object from the S3 bucket
+        const listObjectsResponse = await s3Client.send(new ListObjectsV2Command({
+            Bucket: BUCKET_NAME
+        }));
+
+        if (!listObjectsResponse.Contents || listObjectsResponse.Contents.length === 0) {
+            return {
+                statusCode: 404,
+                body: 'No objects found in the bucket'
+            };
+        }
+
+        const lastModifiedObject = listObjectsResponse.Contents.sort((a, b) => {
+            return (b.LastModified as Date).getTime() - (a.LastModified as Date).getTime();
+        })[0];
+
+        // 2. Copy the object with a new name and metadata
+        const keyAndExt = lastModifiedObject.Key!.split('.');
+        const ext = keyAndExt?.pop() || '';
+        const mainAndNum = keyAndExt.pop()!.split('_');
+        const num = +(mainAndNum.pop()|| 0)+1;
+        const main = mainAndNum;
+
+        const newKey = `${main}_${num}.${ext}`;
+        const copySource = encodeURIComponent(`${BUCKET_NAME}/${lastModifiedObject.Key}`);
+        
+        const metadata = {
+            sessionId: uuidv4(),
+            captchaAttempt: num.toString() // Assuming a fixed number for this example; adjust as needed
+        };
+
+        await s3Client.send(new CopyObjectCommand({
             Bucket: BUCKET_NAME,
-            Key: 'your-file-key', // Provide a key (path/filename) for your file
-            Body: fileContent,
-            Metadata: metadata
-        }).promise();
+            CopySource: copySource,
+            Key: newKey,
+            Metadata: metadata,
+            MetadataDirective: 'REPLACE' // Required to replace metadata
+        }));
 
         return {
             statusCode: 200,
-            body: JSON.stringify({
-                message: 'File uploaded successfully!',
-                data: putObjectResponse
-            })
+            body: `Object copied to ${newKey} with new metadata`
         };
+
     } catch (error) {
-        console.error('Error saving to S3:', error);
+        console.error('Error processing Lambda function:', error);
         return {
             statusCode: 500,
-            body: JSON.stringify({
-                message: 'Error saving to S3'
-            })
+            body: 'Internal Server Error'
         };
     }
 };

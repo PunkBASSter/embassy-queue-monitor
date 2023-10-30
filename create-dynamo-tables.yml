@@ -17,12 +17,12 @@ Resources:
     Properties:
       TableName: !Sub RekognitionResults-${Environment}
       AttributeDefinitions:
-        - AttributeName: 'objectKey' #matches with rekognition-lambda.ts field name
+        - AttributeName: 'partitionKey' #matches with rekognition-lambda.ts field name
           AttributeType: 'S'
         - AttributeName: 'sortKey' #matches with rekognition-lambda.ts field name
           AttributeType: 'N' # N is for Number data type in DynamoDB
       KeySchema:
-        - AttributeName: 'objectKey'
+        - AttributeName: 'partitionKey'
           KeyType: 'HASH'
         - AttributeName: 'sortKey'
           KeyType: 'RANGE' # Sort Key

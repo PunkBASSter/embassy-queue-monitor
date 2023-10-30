@@ -74,6 +74,32 @@ Resources:
                     - "${ResultsTableArn}"
                     - ResultsTableArn: !ImportValue 
                         Fn::Sub: RekognitionResultsTableArn-${Environment}
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:DeleteObject'
+                  - 's3:ListBucket'
+                Resource:
+                  - !Sub 
+                    - "arn:aws:s3:::${CaptchasBucketName}"
+                    - CaptchasBucketName: !ImportValue 
+                        Fn::Sub: EqmCaptchasBucketName-${Environment}
+                  - !Sub 
+                    - "arn:aws:s3:::${CaptchasBucketName}/*"
+                    - CaptchasBucketName: !ImportValue 
+                        Fn::Sub: EqmCaptchasBucketName-${Environment}
+                  #- 'arn:aws:s3:::eqm-captchas'
+                  #- 'arn:aws:s3:::my-s3-bucket-name/*'
+                - Effect: Allow
+                    Action:
+                      - 'rekognition:DetectLabels'
+                      - 'rekognition:DetectFaces'
+                      - 'rekognition:StartFaceDetection'
+                      - 'rekognition:GetFaceDetection'
+                      # Include other Rekognition actions as needed
+                    Resource: '*'
+                  
 
   EventBridgeRule:
     Type: 'AWS::Events::Rule'
