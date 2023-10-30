@@ -17,14 +17,14 @@ Resources:
     Properties:
       TableName: !Sub RekognitionResults-${Environment}
       AttributeDefinitions:
-        - AttributeName: 'objectKey'
+        - AttributeName: 'objectKey' #matches with rekognition-lambda.ts field name
           AttributeType: 'S'
-        - AttributeName: 'timestamp'
+        - AttributeName: 'sortKey' #matches with rekognition-lambda.ts field name
           AttributeType: 'N' # N is for Number data type in DynamoDB
       KeySchema:
         - AttributeName: 'objectKey'
           KeyType: 'HASH'
-        - AttributeName: 'timestamp'
+        - AttributeName: 'sortKey'
           KeyType: 'RANGE' # Sort Key
       ProvisionedThroughput:
         ReadCapacityUnits: '5'

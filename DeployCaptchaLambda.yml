@@ -51,7 +51,7 @@ Resources:
                 - lambda.amazonaws.com
             Action:
               - 'sts:AssumeRole'
-      Policies: #TODO maybe add DynamoDb read/write permissions if not possible to set on Dynamo side
+      Policies:
         - PolicyName: EqmLambdaExecutionPolicy
           PolicyDocument:
             Version: 2012-10-17
@@ -69,8 +69,7 @@ Resources:
                   - 'dynamodb:UpdateItem'
                   - 'dynamodb:BatchGetItem'
                   - 'dynamodb:BatchWriteItem'
-                Resource: #Fn::ImportValue:
-                  #Fn::Sub 'RekognitionResultsTableArn-${Environment}' #!Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/RekognitionResults'
+                Resource: #'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/RekognitionResults'
                   - !Sub 
                     - "${ResultsTableArn}"
                     - ResultsTableArn: !ImportValue 
