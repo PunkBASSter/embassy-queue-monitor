@@ -3,30 +3,26 @@ version: 0.2
 phases:
   install:
     runtime-versions:
-      nodejs: 18.18.2
+      nodejs: 18
     commands:
-      - echo "Installing dependencies..."
-      - cd ./processing/src
+      - cd processing
       - npm install
-
-  pre_build:
-    commands:
-      - echo "Compiling TypeScript..."
-      - npm run tsc  # Assuming you have a script in package.json named "tsc" that runs the TypeScript compiler.
+      - npm install -g typescript
 
   build:
     commands:
-      - echo "Building the project..."
-      # If you have any build commands, place them here.
+      - tsc
+      - mkdir output
+      - cp -r dist/* output/
+      - mkdir output/node_modules
+      - cp -r node_modules/sharp output/node_modules/
+      - cp -r node_modules/uuid output/node_modules/
 
   post_build:
-  commands:
-    - echo "Packaging with SAM..."
-    - sam package --template-file template.yaml --output-template-file packaged.yaml --s3-bucket YOUR_S3_BUCKET_NAME
-    - echo "Deploying with SAM..."
-    - sam deploy --template-file packaged.yaml --stack-name YOUR_STACK_NAME --capabilities CAPABILITY_IAM
-
+    commands:
+      - zip -r ../CaptchaSolvingLambda.zip output/* #todo specify only necessary files
+      #- aws s3 cp CaptchaSolvingLambda.zip s3://eqm-packages-dev/ #this caises access denied error
 
 artifacts:
   files:
-    - ./processing/src/lambda-deployable.zip
+    - CaptchaSolvingLambda.zip #requires additional configuration of S3 bucket in Management Console

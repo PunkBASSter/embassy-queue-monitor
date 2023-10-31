@@ -17,8 +17,7 @@ Parameters:
     Default: EqmCaptchaSolvingLambda
 
 Resources:
-
-  EqmCaptchaSolvingLambda: #todo fix befor using
+  EqmCaptchaSolvingLambda:
     Type: 'AWS::Lambda::Function'
     Properties:
       FunctionName: !Sub ${CaptchaSolvingLambdaPrefix}-${Environment}
@@ -28,13 +27,9 @@ Resources:
             - "${ImportedBucketName}"
             - ImportedBucketName: !ImportValue 
                 Fn::Sub: EqmPackagesBucketName-${Environment}
-        S3Key: CaptchaSolvingLambda.zip
-      Handler: rekognition-lambda.handler #>-
-        #CaptchaSolvingLambda::CaptchaSolvingLambda.Function::FunctionHandler
-      #Runtime: dotnet6
+        S3Key: EqmBuild/CaptchaSolvingLambda.zip
+      Handler: rekognition-lambda.handler
       Runtime: nodejs18.x
-      #MemorySize: 256
-      #Timeout: 20
       Environment:
         Variables:
           DB_TABLE_ARN: !ImportValue
@@ -73,7 +68,7 @@ Resources:
                   - 'dynamodb:UpdateItem'
                   - 'dynamodb:BatchGetItem'
                   - 'dynamodb:BatchWriteItem'
-                Resource: #'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/RekognitionResults'
+                Resource:
                   - !Sub 
                     - "${ResultsTableArn}"
                     - ResultsTableArn: !ImportValue 
@@ -93,8 +88,6 @@ Resources:
                     - "arn:aws:s3:::${CaptchasBucketName}/*"
                     - CaptchasBucketName: !ImportValue 
                         Fn::Sub: EqmCaptchasBucketName-${Environment}
-                  #- 'arn:aws:s3:::eqm-captchas'
-                  #- 'arn:aws:s3:::my-s3-bucket-name/*'
               - Effect: Allow
                 Action:
                   - 'rekognition:DetectText'
@@ -102,10 +95,8 @@ Resources:
                   - 'rekognition:DetectFaces'
                   - 'rekognition:StartFaceDetection'
                   - 'rekognition:GetFaceDetection'
-                  # Include other Rekognition actions as needed
                 Resource: '*'
                   
-
   EventBridgeRule:
     Type: 'AWS::Events::Rule'
     Properties:
