@@ -20,7 +20,8 @@ phases:
 
   post_build:
     commands:
-      - zip -r ../CaptchaSolvingLambda.zip output/* #todo specify only necessary files
+      - cd output
+      - zip -r ../../CaptchaSolvingLambda.zip ./* #todo specify only necessary files
       #- aws s3 cp CaptchaSolvingLambda.zip s3://eqm-packages-dev/ #this caises access denied error
 
 artifacts:
