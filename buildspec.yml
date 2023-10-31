@@ -13,7 +13,8 @@ phases:
     commands:
       - tsc
       #packing CaptchaSolvingLambda.zip
-      - mkdir output/captchaSolving
+      - mkdir output
+      - mkdir ./output/captchaSolving
       - cp captchaSolving/package.json output/captchaSolving/
       - cp -r dist/captchaSolving/* output/captchaSolving/
       - cd output/captchaSolving
