@@ -4,16 +4,12 @@ import { Rekognition } from '@aws-sdk/client-rekognition';
 import { EventBridgeEvent } from 'aws-lambda';
 import sharp from 'sharp'
 
-
 const s3 = new S3();
 const rekognition = new Rekognition();
 const dynamoDB = new DynamoDBClient();
 const tableArn = process.env.DB_TABLE_ARN;
 const tableName = tableArn?.split('/').pop() || "RekognitionResults";
 
-//s3 captcha image metadata must contain session guid used as the parti
-
-//TODO maybe pass session data via object metadata or tags.
 export const handler = async (event: EventBridgeEvent<any, any>) => {
     try {
         // Assuming the CloudTrail event is for an S3 PutObject
@@ -38,10 +34,11 @@ export const handler = async (event: EventBridgeEvent<any, any>) => {
 
         // Extract the detected text
         const detectedTexts = rekognitionResponse.TextDetections?.map(t => t.DetectedText || '') || [];       
-        const item : CaptchaItem= {
+        const item = {
             partitionKey: sessionId,
             sortKey: +captchaAttempt,
             detectedTexts: detectedTexts,
+            s3key: objectKey,
             timeUtc: new Date().toUTCString()
         };
 

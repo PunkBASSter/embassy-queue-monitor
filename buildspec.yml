@@ -12,16 +12,17 @@ phases:
   build:
     commands:
       - tsc
-      - mkdir output
-      - cp -r dist/* output/
-      - mkdir output/node_modules
-      - cp -r node_modules/sharp output/node_modules/
-      - cp -r node_modules/uuid output/node_modules/
+      #packing CaptchaSolvingLambda.zip
+      - mkdir output/captchaSolving
+      - cp captchaSolving/package.json output/captchaSolving/
+      - cp -r dist/captchaSolving/* output/captchaSolving/
+      - cd output/captchaSolving
+      - npm install --production
+      - zip -r ../../../CaptchaSolvingLambda.zip ./*
+      - cd ../../ # go back to processing
 
   post_build:
     commands:
-      - cd output
-      - zip -r ../../CaptchaSolvingLambda.zip ./* #todo specify only necessary files
       #- aws s3 cp CaptchaSolvingLambda.zip s3://eqm-packages-dev/ #this caises access denied error
 
 artifacts:
