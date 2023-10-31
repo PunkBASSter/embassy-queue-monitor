@@ -35,6 +35,10 @@ Resources:
       Runtime: nodejs18.x
       #MemorySize: 256
       #Timeout: 20
+      Environment:
+        Variables:
+          DB_TABLE_ARN: !ImportValue
+            Fn::Sub: RekognitionResultsTableArn-${Environment}
     DependsOn:
       - EqmCaptchaSolvingLambdaRole
     
@@ -91,14 +95,15 @@ Resources:
                         Fn::Sub: EqmCaptchasBucketName-${Environment}
                   #- 'arn:aws:s3:::eqm-captchas'
                   #- 'arn:aws:s3:::my-s3-bucket-name/*'
-                - Effect: Allow
-                    Action:
-                      - 'rekognition:DetectLabels'
-                      - 'rekognition:DetectFaces'
-                      - 'rekognition:StartFaceDetection'
-                      - 'rekognition:GetFaceDetection'
-                      # Include other Rekognition actions as needed
-                    Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'rekognition:DetectText'
+                  - 'rekognition:DetectLabels'
+                  - 'rekognition:DetectFaces'
+                  - 'rekognition:StartFaceDetection'
+                  - 'rekognition:GetFaceDetection'
+                  # Include other Rekognition actions as needed
+                Resource: '*'
                   
 
   EventBridgeRule:

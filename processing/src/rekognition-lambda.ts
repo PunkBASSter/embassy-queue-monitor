@@ -6,7 +6,8 @@ import { EventBridgeEvent } from 'aws-lambda';
 const s3 = new S3();
 const rekognition = new Rekognition();
 const dynamoDB = new DynamoDBClient();
-const tableName = "RekognitionResults";
+const tableArn = process.env.DB_TABLE_ARN;
+const tableName = tableArn?.split('/').pop() || "RekognitionResults";
 
 //s3 captcha image metadata must contain session guid used as the parti
 
