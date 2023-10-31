@@ -2,6 +2,8 @@ import { S3 } from '@aws-sdk/client-s3';
 import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { Rekognition } from '@aws-sdk/client-rekognition';
 import { EventBridgeEvent } from 'aws-lambda';
+import sharp from 'sharp'
+
 
 const s3 = new S3();
 const rekognition = new Rekognition();
@@ -24,14 +26,15 @@ export const handler = async (event: EventBridgeEvent<any, any>) => {
             Key: objectKey,
         });
 
-        const imageBytes = await s3Response.Body?.transformToByteArray();
+        const imageBytes = await s3Response.Body?.transformToByteArray()!;
+        const preprocessedImage = await preprocessImage(imageBytes);
         const metadata = s3Response.Metadata || {};
         
         const sessionId = metadata.sessionId || "00000000-0000-0000-0000-000000000000";
         const captchaAttempt = metadata.captchaAttempt || "0";
 
         // Detect text in the image using Rekognition
-        const rekognitionResponse = await rekognition.detectText({ Image: { Bytes: imageBytes } });
+        const rekognitionResponse = await rekognition.detectText({ Image: { Bytes: preprocessedImage } });
 
         // Extract the detected text
         const detectedTexts = rekognitionResponse.TextDetections?.map(t => t.DetectedText || '') || [];       
@@ -86,4 +89,13 @@ function convertToAttributeValue(item: { [key: string]: any }): { [key: string]:
     }
 
     return attributeValue;
+}
+
+//possibly will need to check metadata and input image size
+async function preprocessImage(buffer: Uint8Array) : Promise<Uint8Array>{
+    const outputImage = await sharp(buffer)
+            .resize(200, 81, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 1 } })
+            .toBuffer();
+
+    return outputImage;
 }
