@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'CF Template creating DynamoDB table storing processing items.'
+
+Parameters:
+  Environment:
+    Description: Environment name (e.g., dev, prod, staging)
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Default: dev
+
+Resources:
+  ProcessingItemsTable:
+    Type: 'AWS::DynamoDB::Table'
+    Properties:
+      TableName: !Sub ProcessingItems-${Environment}
+      AttributeDefinitions:
+        - AttributeName: 'partitionKey' #guid from SQS message
+          AttributeType: 'S'
+      KeySchema:
+        - AttributeName: 'partitionKey'
+          KeyType: 'HASH'
+      ProvisionedThroughput:
+        ReadCapacityUnits: '5'
+        WriteCapacityUnits: '5'
+
+Outputs:
+
+  EqmProcessingItemsTableArn:
+    Description: "Processing items DDB Table ARN"
+    Value: !GetAtt ProcessingItemsTable.Arn
+    Export:
+      Name: !Sub ProcessingItemsTableArn-${Environment}

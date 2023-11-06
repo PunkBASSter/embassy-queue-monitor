@@ -3,6 +3,7 @@ import { DynamoDBClient, PutItemCommand } from '@aws-sdk/client-dynamodb';
 import { Rekognition } from '@aws-sdk/client-rekognition';
 import { EventBridgeEvent } from 'aws-lambda';
 import sharp from 'sharp'
+import CaptchaItem from '../model/captchaItem';
 
 const s3 = new S3();
 const rekognition = new Rekognition();
@@ -34,7 +35,7 @@ export const handler = async (event: EventBridgeEvent<any, any>) => {
 
         // Extract the detected text
         const detectedTexts = rekognitionResponse.TextDetections?.map(t => t.DetectedText || '') || [];       
-        const item = {
+        const item: CaptchaItem = {
             partitionKey: sessionId,
             sortKey: +captchaAttempt,
             detectedTexts: detectedTexts,
@@ -52,7 +53,8 @@ export const handler = async (event: EventBridgeEvent<any, any>) => {
     }
 };
 
-async function putDdbItem(tableName: string, item: { [key: string]: any }) {
+//TODO extract to common util functions
+export async function putDdbItem(tableName: string, item: { [key: string]: any }) {
     const convertedItem = convertToAttributeValue(item);
 
     try {

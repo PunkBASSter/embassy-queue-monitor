@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 'CloudFormation Template to create a DynamoDB table for Rekognition Results with a sort key.'
+Description: 'CF Template creating DynamoDB table for Captcha solving state.'
 
 Parameters:
   Environment:
@@ -32,6 +32,7 @@ Resources:
       StreamSpecification:
         StreamViewType: 'NEW_AND_OLD_IMAGES'
 
+  
 Outputs:
 
   EqmRekognitionResultsTableArn:

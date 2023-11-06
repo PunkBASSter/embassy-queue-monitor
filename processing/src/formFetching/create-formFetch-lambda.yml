@@ -1,0 +1,101 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: 'AWS::Serverless-2016-10-31'
+
+Parameters:
+  Environment:
+    Description: Environment name (e.g., dev, prod, staging)
+    Type: String
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Default: dev
+
+  FormFetchLambdaPrefix:
+    Description: Name of the Lambda function
+    Type: String
+    Default: EqmFormFetchLambda
+
+Resources:
+  EqmFormFetchLambda:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      FunctionName: !Sub ${FormFetchLambdaPrefix}-${Environment}
+      Role: !GetAtt EqmFormFetchLambdaRole.Arn
+      Code:
+        S3Bucket: !Sub 
+            - "${ImportedBucketName}"
+            - ImportedBucketName: !ImportValue 
+                Fn::Sub: EqmPackagesBucketName-${Environment}
+        S3Key: EqmBuild/FormFetchingLambda.zip
+      Handler: fetchForm-lambda.handler
+      Runtime: nodejs18.x
+      Environment:
+        Variables:
+          - DB_TABLE_ARN: !ImportValue
+              Fn::Sub: ProcessingItemsTableArn-${Environment}
+          - S3_BUCKET_NAME: !ImportValue
+              Fn::Sub: EqmCaptchasBucketName-${Environment}
+    DependsOn:
+      - EqmFormFetchLambdaRole
+
+  EqmFormFetchLambdaRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub ${FormFetchLambdaPrefix}-${Environment}-role
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: EqmLambdaExecutionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - 'dynamodb:GetItem'
+                  - 'dynamodb:PutItem'
+                  - 'dynamodb:UpdateItem'
+                  - 'dynamodb:BatchGetItem'
+                  - 'dynamodb:BatchWriteItem'
+                Resource:
+                  - !Sub 
+                    - "${ResultsTableArn}"
+                    - ResultsTableArn: !ImportValue 
+                        Fn::Sub: ProcessingItemsTableArn-${Environment}
+              - Effect: Allow
+                Action:
+                  - 's3:PutObject'
+                  - 's3:GetObject'
+                  - 's3:DeleteObject'
+                  - 's3:ListBucket'
+                Resource:
+                  - !Sub 
+                    - "arn:aws:s3:::${CaptchasBucketName}"
+                    - CaptchasBucketName: !ImportValue 
+                        Fn::Sub: EqmCaptchasBucketName-${Environment}
+                  - !Sub 
+                    - "arn:aws:s3:::${CaptchasBucketName}/*"
+                    - CaptchasBucketName: !ImportValue 
+                        Fn::Sub: EqmCaptchasBucketName-${Environment}
+        #TODO ADD SNS/SQS access policy?
+
+Outputs:
+
+  EqmFormFetchLambdaArn:
+    Description: "Captcha Solving Lambda ARN"
+    Value: !GetAtt EqmFormFetchLambda.Arn
+    Export:
+      Name: !Sub EqmFormFetchLambdaArn-${Environment}

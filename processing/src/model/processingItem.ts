@@ -1,23 +1,14 @@
-interface ProcessingItem {
+export default interface ProcessingItem {
+    partitionKey: string;
     url: string;
-    form: {
-        csrf: string;
-        id: string;
-        code: string;
-        url: string;
-    };
-    headers: [
-        {
-            key: string;
-            value: string;
-        }
-    ];
-    captchas: [ Captcha ];
+    formFields: { };
+    headers: { [key: string]: string; };
+    captchas: Captcha[];
+    timeUtc: string;
 }
 
 interface Captcha {
-    id: string;
     s3Key: string; //may correspond to the pipeline ID 
     isValid: boolean | null;
-    responses: [ string ];
+    response: string | null;
 }
